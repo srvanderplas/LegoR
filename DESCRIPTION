@@ -7,8 +7,12 @@ Authors@R:
            role = c("aut", "cre"),
            email = "srvanderplas@gmail.com",
            comment = c(ORCID = "0000-0002-3803-0972"))
-Description: Collects data from shop.lego.com and brickset for integration. 
-The inst folder includes a script to automatically update downloaded data.
+Description: Collects data from shop.lego.com and brickset for integration. The inst folder includes a script to automatically update downloaded data.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
+Imports:
+  purrr,
+  readr,
+  rvest,
+  xml2
