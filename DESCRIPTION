@@ -12,7 +12,9 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports:
-  purrr,
-  readr,
-  rvest,
-  xml2
+    purrr,
+    readr,
+    rvest,
+    xml2,
+    magrittr
+RoxygenNote: 6.1.1
