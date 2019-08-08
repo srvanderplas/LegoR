@@ -140,7 +140,6 @@ brickset_auth <- function(key = brickset_key(), username = brickset_username(),
     assign(".brickset_key", key, pos = .GlobalEnv)
     assign(".brickset_username", username, pos = .GlobalEnv)
     assign(".brickset_password", password, pos = .GlobalEnv)
-    assign(".brickset_ua", httr::user_agent("http://github.com/srvanderplas/Lego"), pos = .GlobalEnv)
   }
 
   url_pattern <- "https://brickset.com/api/v2.asmx/login?apiKey=%s&username=%s&password=%s"
@@ -239,7 +238,8 @@ brickset_api <- function(where,
 
 
   res <- httr::GET(paste0("https://brickset.com/api/v2.asmx/", where, "?",
-                          paste(paste0(names(arglist), "=", arglist), collapse = "&")))
+                          paste(paste0(names(arglist), "=", arglist), collapse = "&")),
+                   brickset_ua())
 
   if (res$status_code != 200) {
     warning("Query failed")
