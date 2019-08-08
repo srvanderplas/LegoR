@@ -27,5 +27,5 @@ Imports:
     usethis,
     xml2
 Suggests:
-    pdftools
+    qpdf
 RoxygenNote: 6.1.1
