@@ -3,11 +3,13 @@
 #' @param url URL of shop theme website (should also work for interests)
 #' @importFrom xml2 read_html
 #' @importFrom rvest html_nodes html_text
+#' @export
 #' @examples
 #' library(Lego)
 #' themes <- lego_get_themes()
 #' interests <- lego_get_themes("https://shop.lego.com/en-US/category/interests")
 lego_get_themes <- function(url = "https://shop.lego.com/en-US/category/themes") {
+  . <- NULL
   doc <- xml2::read_html(url)
   tibble::tibble(
     name = rvest::html_nodes(doc, "span[class*=CategoryLeafstyles__Title]") %>%
@@ -38,10 +40,8 @@ node_or_NA <- function(x, fun, ...) {
 #' @importFrom rvest html_nodes html_text html_attr
 #' @importFrom purrr map_chr
 #' @importFrom readr parse_number
-#' @examples
-#' library(Lego)
-#' star_wars_pg1 <- lego_get_sets_on_page("https://shop.lego.com/en-US/category/star-wars")
 lego_get_sets_on_page <- function(url) {
+  . <- NULL
   doc <- xml2::read_html(url)
 
   sets <- rvest::html_nodes(doc, "li[class*=ProductGridstyles__Item]")
@@ -75,10 +75,12 @@ lego_get_sets_on_page <- function(url) {
 #' @importFrom stringr str_extract_all str_remove
 #' @importFrom readr parse_number
 #' @importFrom purrr map_df
+#' @export
 #' @examples 
 #' library(Lego)
 #' lego_get_sets("https://shop.lego.com/en-US/category/creator-3-in-1")
 lego_get_sets <- function(url) {
+  . <- NULL
   doc <- xml2::read_html(url)
   
   n_pages <- rvest::html_node(doc, "span[class*=PaginationBadgerstyles__Text]") %>%
@@ -104,17 +106,16 @@ lego_get_sets <- function(url) {
 #' @importFrom stringr str_extract str_remove
 #' @importFrom readr parse_number
 #' @importFrom xml2 read_html
-#' 
+#' @export
 #' @examples 
 #' library(Lego)
-#' library(tidyverse)
 #' sets <- lego_get_sets("https://shop.lego.com/en-US/category/creator-3-in-1")
 #' lego_get_set_data(sets$link[1]) # get one set
 #' sets <- sets %>%
-#'   mutate(set_info = purrr::map(link, lego_get_set_data)) %>%
-#'   unnest()
+#'   dplyr::mutate(set_info = purrr::map(link, lego_get_set_data)) %>%
+#'   tidyr::unnest()
 lego_get_set_data <- function(url) {
-  
+  . <- NULL
   doc <- xml2::read_html(url)
   
   rvest::html_nodes(doc, "dl[class*=ProductDetails__ProductAttribute]") %>%
