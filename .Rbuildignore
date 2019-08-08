@@ -1,3 +1,8 @@
+^README\.Rmd$
+^\.travis\.yml$
+^pkgdown$
+^_pkgdown\.yml$
+^docs$
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^LICENSE\.md$
