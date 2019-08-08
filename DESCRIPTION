@@ -13,8 +13,10 @@ Encoding: UTF-8
 LazyData: true
 Imports:
     assertthat,
+    clipr,
     dplyr,
     httr,
+    lubridate,
     magrittr,
     purrr,
     readr,
@@ -22,6 +24,7 @@ Imports:
     stringr,
     tibble,
     tidyr,
+    usethis,
     xml2
 Suggests:
     pdftools
