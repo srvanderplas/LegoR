@@ -12,9 +12,14 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports:
+    dplyr,
+    httr,
+    magrittr,
     purrr,
     readr,
     rvest,
-    xml2,
-    magrittr
+    stringr,
+    tibble,
+    tidyr,
+    xml2
 RoxygenNote: 6.1.1
