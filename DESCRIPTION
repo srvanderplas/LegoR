@@ -1,4 +1,4 @@
-Package: Lego
+Package: LegoR
 Title: Package to scrape data from shop.lego.com and brickset
 Version: 0.0.0.9000
 Authors@R: 

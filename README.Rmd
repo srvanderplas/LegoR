@@ -13,13 +13,15 @@ knitr::opts_chunk$set(
   out.width = "100%"
 )
 ```
-# Lego
+# LegoR
 
 <!-- badges: start -->
-[![Travis build status](https://travis-ci.org/srvanderplas/Lego.svg?branch=master)](https://travis-ci.org/srvanderplas/Lego)
+[![CRAN_Status_Badge](https://www.r-pkg.org/badges/version/LegoR)](https://cran.r-project.org/package=LegoR)
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://www.tidyverse.org/lifecycle/#experimental)
+[![Travis build status](https://travis-ci.org/srvanderplas/LegoR.svg?branch=master)](https://travis-ci.org/srvanderplas/LegoR)
 <!-- badges: end -->
 
-The goal of Lego is to make it easy to get Lego-centric data into R.
+The goal of LegoR is to make it easy to get Lego-centric data into R.
 
 ## Installation
 
@@ -27,6 +29,6 @@ You can install the development version from [GitHub](https://github.com/) with:
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("srvanderplas/Lego")
+devtools::install_github("srvanderplas/LegoR")
 ```
 
