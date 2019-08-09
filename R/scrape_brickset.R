@@ -1,3 +1,6 @@
+if(getRversion() >= "2.15.1")  utils::globalVariables(c(".brickset_hash", ".brickset_authtime", ".brickset_password", ".brickset_username", ".brickset_key"))
+
+
 #' Set up R to work with brickset.com
 #'
 #' @importFrom usethis ui_yeah
@@ -8,7 +11,7 @@
 #' brickset_setup()
 #' }
 brickset_setup <- function() {
-  request <- "Welcome to the Lego package. \n
+  request <- "Welcome to the LegoR package. \n
   To use the Brickset functionality, you will need a user account and an API key. \n"
 
   if (!interactive()) {
@@ -57,7 +60,7 @@ brickset_save_credentials <- function(username, password, api_key) {
     clipr::write_clip(sprintf(".brickset_username = '%s'\\n.brickset_password = '%s'\\n.brickset_key = '%s'", username, password, api_key))
     message("The values have been copied to your clipboard. Paste them into the R profile file and save.")
   }
-
+  
   if (is.null(brickset_username())) {
     assign(".brickset_username", username, pos = .GlobalEnv)
   }
@@ -101,6 +104,7 @@ brickset_hash <- function() {
   return(NULL)
 }
 
+#' @importFrom lubridate origin
 brickset_authtime <- function() {
   if (exists(".brickset_authtime")) {
     return(.brickset_authtime)
@@ -109,7 +113,7 @@ brickset_authtime <- function() {
 }
 
 brickset_ua <- function() {
-  httr::user_agent("https://github.com/srvanderplas/Lego")
+  httr::user_agent("https://github.com/srvanderplas/LegoR")
 }
 
 #' Authenticate with the brickset.com api
@@ -124,6 +128,8 @@ brickset_ua <- function() {
 #' @param cache cache key, username, password for later (default TRUE)
 #' @return TRUE if authentication succeeds, FALSE otherwise.
 #' @export
+#' @importFrom httr GET
+#' @importFrom lubridate now
 #' @examples
 #' \dontrun{
 #' brickset_auth()
@@ -150,6 +156,7 @@ brickset_auth <- function(key = brickset_key(), username = brickset_username(),
     # print(userHash)
     assign(".brickset_hash", userHash, pos = .GlobalEnv, inherits = F)
     assign(".brickset_authtime", lubridate::now(), pos = .GlobalEnv)
+    
     return(TRUE)
   } else {
     return(FALSE)
@@ -159,7 +166,7 @@ brickset_auth <- function(key = brickset_key(), username = brickset_username(),
 print.brickset_api <- function(x, ...) {
   message(paste0("<brickset ", x$query_endpoint, ">"))
   message(paste0("Status: ", x$status, ""))
-  sapply(capture.output(print(x$content)), message)
+  sapply(utils::capture.output(print(x$content)), message)
   invisible(x)
 }
 
@@ -187,10 +194,10 @@ brickset_check_user_hash <- function() {
 #' This is a general helper for handling the brickset API.
 #' @inheritParams brickset_get_themes
 #' @param where API endpoint (e.g. getTheme, getSets)
-#' @param default_args default arguments for the generici api. Should be supplied by calling function
-#'
+#' @param default_args default arguments for the generic api. Should be supplied by calling function
+#' @param ... other API arguments
 #' @importFrom httr GET
-#' @importFrom utils URLencode
+#' @importFrom utils URLencode 
 #' @importFrom assertthat assert_that
 #' @export
 brickset_api <- function(where,
@@ -212,6 +219,7 @@ brickset_api <- function(where,
   if (is.null(auth_args$userHash) | need_reauth) {
     auth_res <- do.call(brickset_auth, auth_args[names(auth_args) %in% c("key", "username", "password")])
     assertthat::assert_that(auth_res, msg = "Authentication was not successful")
+    
     userHash <- auth_args$userHash <- .brickset_hash
     auth_args <- list(key = brickset_key(),
                       username = brickset_username(),

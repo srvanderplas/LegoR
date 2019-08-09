@@ -5,7 +5,7 @@
 #' @importFrom rvest html_nodes html_text
 #' @export
 #' @examples
-#' library(Lego)
+#' library(LegoR)
 #' themes <- lego_get_themes()
 #' interests <- lego_get_themes("https://shop.lego.com/en-US/category/interests")
 lego_get_themes <- function(url = "https://shop.lego.com/en-US/category/themes") {
@@ -77,7 +77,7 @@ lego_get_sets_on_page <- function(url) {
 #' @importFrom purrr map_df
 #' @export
 #' @examples 
-#' library(Lego)
+#' library(LegoR)
 #' lego_get_sets("https://shop.lego.com/en-US/category/creator-3-in-1")
 lego_get_sets <- function(url) {
   . <- NULL
@@ -108,7 +108,7 @@ lego_get_sets <- function(url) {
 #' @importFrom xml2 read_html
 #' @export
 #' @examples 
-#' library(Lego)
+#' library(LegoR)
 #' sets <- lego_get_sets("https://shop.lego.com/en-US/category/creator-3-in-1")
 #' lego_get_set_data(sets$link[1]) # get one set
 #' sets <- sets %>%
