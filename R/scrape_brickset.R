@@ -199,7 +199,6 @@ brickset_check_user_hash <- function() {
 #' @importFrom httr GET
 #' @importFrom utils URLencode 
 #' @importFrom assertthat assert_that
-#' @export
 brickset_api <- function(where,
                          auth_args = list(key = brickset_key(),
                                           username = brickset_username(),
