@@ -1,0 +1,108 @@
+---
+title: "Brickset Functions"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Brickset}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(LegoR)
+library(dplyr)
+library(tidyr)
+```
+
+
+https://brickset.com/ contains data on historical lego sets as well as current sets. Unlike Lego.com, we can access Brickset data using an API (application programming interface). This does require registering for a brickset account and requesting an API key. All functions for the brickset.com data start with the `brickset_` prefix.
+
+```{r, eval = F}
+brickset_setup() # guides you through the account setup process
+```
+
+Once you have your credentials, you can save them to your Rprofile using `brickset_save_credentials()`. This will also save the credentials as global variables. 
+
+```{r, eval = F}
+brickset_save_credentials("your_username", "your_password", "your_api_key")
+```
+
+Then, you can access brickset's data by authenticating. You may have to periodically reauthenticate depending on your internet configuration, but most functions should refresh the authentication automatically. 
+
+```{r, eval = exists(".brickset_key")}
+brickset_auth()
+```
+
+As with the Lego store, sets on brickset are organized by theme. 
+
+```{r, eval = exists(".brickset_key")}
+themes <- brickset_get_themes()
+```
+
+We can see what themes existed at the beginning...
+```{r, eval = exists(".brickset_key")}
+# Oldest themes
+arrange(themes, yearfrom)
+```
+
+Or the themes that have been around the longest...
+```{r, eval = exists(".brickset_key")}
+# Longest running themes
+arrange(themes, desc(yearto - yearfrom)) %>%
+  head(10)
+```
+
+Most of the functions described in the [API documentation](https://brickset.com/tools/webservices/v2) have been wrapped; the exception is functions which concern a user's personal collection. 
+
+Some themes have sub-themes:
+
+```{r, eval = exists(".brickset_key")}
+# Themes with sub-themes
+filter(themes, subthemecount > 0) %>%
+  arrange(desc(subthemecount))
+```
+
+```{r, eval = exists(".brickset_key")}
+(brickset_get_subthemes("Duplo"))
+```
+
+Not all themes are available in all years:
+```{r, eval = exists(".brickset_key")}
+(brickset_get_years("Pirates"))
+```
+
+We can get sets as well, searching using the set search api: https://brickset.com/api/v2.asmx?op=getSets
+```{r, eval = exists(".brickset_key")}
+brickset_auth() # At this point I had to reauthenticate
+sets_2015 <- brickset_get_sets(year = 2015)
+sets_2015
+```
+
+Note that the `setNumber` parameter is not equivalent to the lego set number, it is an internal Brickset number.
+```{r, eval = exists(".brickset_key")}
+(brickset_get_sets(setNumber = 71040))
+(disney_castle <- brickset_get_sets(query = 71040))
+```
+
+We can also get reviews and instructions for a set:
+```{r, eval = exists(".brickset_key")}
+disney_castle_instructions <- brickset_get_instructions(disney_castle$setid)
+```
+The first link is [here](https://www.lego.com/biassets/bi/6194211.pdf) and shows the full instruction set for building a disney castle.
+
+```{r, eval = exists(".brickset_key")}
+disney_castle_reviews <- brickset_get_reviews(disney_castle$setid)
+
+disney_castle_reviews %>% 
+  gather(key = "ratingType", value = "ratingValue", overallrating:valueformoney) %>%
+  mutate(ratingValue = factor(ratingValue)) %>%
+  ggplot(aes(x = ratingType, fill = ratingValue)) + 
+  geom_bar(position = "stack") + 
+  scale_fill_brewer(palette = "BuGn")
+```
