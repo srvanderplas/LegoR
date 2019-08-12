@@ -47,6 +47,7 @@ brickset_setup <- function() {
 #' @param username username.
 #' @param password password.
 #' @param api_key API key.
+#' @param profile_save Save information to R profile? One of "user", "project", or NULL (to not save information)
 #' @importFrom usethis edit_r_profile ui_yeah
 #' @importFrom clipr write_clip
 #' @export
@@ -54,23 +55,28 @@ brickset_setup <- function() {
 #' \dontrun{
 #' # brickset_save_credentials("your_user", "your_password", "your_api_key")
 #' }
-brickset_save_credentials <- function(username, password, api_key) {
-  if (usethis::ui_yeah("Are you ok with adding these to your user's Rprofile?")) {
-    usethis::edit_r_profile("user")
-    clipr::write_clip(sprintf(".brickset_username = '%s'\\n.brickset_password = '%s'\\n.brickset_key = '%s'", username, password, api_key))
-    message("The values have been copied to your clipboard. Paste them into the R profile file and save.")
-  }
-  
-  if (is.null(brickset_username())) {
-    assign(".brickset_username", username, pos = .GlobalEnv)
-  }
+brickset_save_credentials <- function(username, password, api_key, profile_save = "user") {
+  if (!is.null(profile_save)) {
+    clipr::write_clip(sprintf(".brickset_username = '%s'\n.brickset_password = '%s'\n.brickset_key = '%s'", username, password, api_key))
 
-  if (is.null(brickset_password())) {
-    assign(".brickset_password", password, pos = .GlobalEnv)
-  }
+    if (usethis::ui_yeah(sprintf("Are you ok with adding these to your %s Rprofile?", profile_save))) {
+      usethis::edit_r_profile(profile_save)
+      message("The values have been copied to your clipboard. Paste them into the R profile file and save.")
+    } else {
+      message("The values have been copied to your clipboard. Save them in a safe place of your choosing.")
+    }
+  } else {
+    if (is.null(brickset_username())) {
+      assign(".brickset_username", username, pos = .GlobalEnv)
+    }
 
-  if (is.null(brickset_key())) {
-    assign(".brickset_key", api_key, pos = .GlobalEnv)
+    if (is.null(brickset_password())) {
+      assign(".brickset_password", password, pos = .GlobalEnv)
+    }
+
+    if (is.null(brickset_key())) {
+      assign(".brickset_key", api_key, pos = .GlobalEnv)
+    }
   }
 
   source("~/.Rprofile")
@@ -156,7 +162,7 @@ brickset_auth <- function(key = brickset_key(), username = brickset_username(),
     # print(userHash)
     assign(".brickset_hash", userHash, pos = .GlobalEnv, inherits = F)
     assign(".brickset_authtime", lubridate::now(), pos = .GlobalEnv)
-    
+
     return(TRUE)
   } else {
     return(FALSE)
@@ -197,7 +203,7 @@ brickset_check_user_hash <- function() {
 #' @param default_args default arguments for the generic api. Should be supplied by calling function
 #' @param ... other API arguments
 #' @importFrom httr GET
-#' @importFrom utils URLencode 
+#' @importFrom utils URLencode
 #' @importFrom assertthat assert_that
 brickset_api <- function(where,
                          auth_args = list(key = brickset_key(),
@@ -218,7 +224,7 @@ brickset_api <- function(where,
   if (is.null(auth_args$userHash) | need_reauth) {
     auth_res <- do.call(brickset_auth, auth_args[names(auth_args) %in% c("key", "username", "password")])
     assertthat::assert_that(auth_res, msg = "Authentication was not successful")
-    
+
     userHash <- auth_args$userHash <- .brickset_hash
     auth_args <- list(key = brickset_key(),
                       username = brickset_username(),
