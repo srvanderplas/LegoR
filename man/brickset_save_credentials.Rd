@@ -4,7 +4,8 @@
 \alias{brickset_save_credentials}
 \title{Save brickset.com credentials to Rprofile file}
 \usage{
-brickset_save_credentials(username, password, api_key)
+brickset_save_credentials(username, password, api_key,
+  profile_save = "user")
 }
 \arguments{
 \item{username}{username.}
@@ -12,6 +13,8 @@ brickset_save_credentials(username, password, api_key)
 \item{password}{password.}
 
 \item{api_key}{API key.}
+
+\item{profile_save}{Save information to R profile? One of "user", "project", or NULL (to not save information)}
 }
 \description{
 Opens the user's Rprofile file and pastes the values to the clipboard, then
