@@ -10,7 +10,8 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
   fig.path = "man/figures/README-",
-  out.width = "100%"
+  out.width = "100%",
+  dpi = 300
 )
 ```
 # LegoR
@@ -32,10 +33,15 @@ You can install the development version from [GitHub](https://github.com/) with:
 # install.packages("devtools")
 devtools::install_github("srvanderplas/LegoR")
 ```
+```{r}
+# Set up and load packages
+library(tidyverse)
+library(LegoR)
+```
 
 ## Lego.com
 
-The first set of functions provide a convenient way to scrape data from https://shop.lego.com/. 
+The first set of functions provide a convenient way to scrape data from https://shop.lego.com/. These functions are based on the `rvest` package and depend on the structure of the site; site updates may break the functionality. All functions for lego.com start with the `lego_` prefix.
 
 The natural approach to gather data on all currently available lego sets is to get all sets by theme.
 ```{r}
@@ -45,8 +51,6 @@ The natural approach to gather data on all currently available lego sets is to g
 Each theme link leads to a page with one or more sets. 
 
 ```{r}
-library(tidyverse)
-library(LegoR)
 (architecture_sets <- lego_get_sets(themes$theme_link[1]))
 ```
 
@@ -68,3 +72,44 @@ set_data <- lego_get_themes() %>%
 
 set_data
 ```
+
+## Brickset
+
+https://brickset.com/ contains data on historical lego sets as well as current sets. Unlike Lego.com, we can access Brickset data using an API (application programming interface). This does require registering for a brickset account and requesting an API key. All functions for the brickset.com data start with the `brickset_` prefix.
+
+```{r, eval = F}
+brickset_setup() # guides you through the account setup process
+```
+
+Once you have your credentials, you can save them to your Rprofile using `brickset_save_credentials()`. This will also save the credentials as global variables. 
+
+```{r, eval = F}
+brickset_save_credentials("your_username", "your_password", "your_api_key")
+```
+
+Then, you can access brickset's data by authenticating. You may have to periodically reauthenticate depending on your internet configuration, but most functions should refresh the authentication automatically. 
+
+```{r, eval = exists(".brickset_key")}
+brickset_auth()
+```
+
+As with the Lego store, sets on brickset are organized by theme. 
+
+```{r, eval = exists(".brickset_key")}
+themes <- brickset_get_themes()
+```
+
+We can see what themes existed at the beginning...
+```{r, eval = exists(".brickset_key")}
+# Oldest themes
+arrange(themes, yearfrom)
+```
+
+Or the themes that have been around the longest...
+```{r, eval = exists(".brickset_key")}
+# Longest running themes
+arrange(themes, desc(yearto - yearfrom)) %>%
+  head(10)
+```
+
+Most of the functions described in the [API documentation](https://brickset.com/tools/webservices/v2) have been wrapped; the exception is functions which concern a user's personal collection. 
