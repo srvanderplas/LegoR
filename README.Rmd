@@ -33,3 +33,38 @@ You can install the development version from [GitHub](https://github.com/) with:
 devtools::install_github("srvanderplas/LegoR")
 ```
 
+## Lego.com
+
+The first set of functions provide a convenient way to scrape data from https://shop.lego.com/. 
+
+The natural approach to gather data on all currently available lego sets is to get all sets by theme.
+```{r}
+(themes <- lego_get_themes())
+```
+
+Each theme link leads to a page with one or more sets. 
+
+```{r}
+library(tidyverse)
+library(LegoR)
+(architecture_sets <- lego_get_sets(themes$theme_link[1]))
+```
+
+If the goal is to get the price and titles, we could stop here, but more set data is available on the set-specific page.
+
+```{r}
+lego_get_set_data(architecture_sets$set_link[1])
+```
+
+These sets are structured in order to provide easy pipe functionality:
+```{r}
+set_data <- lego_get_themes() %>%
+  filter(row_number() == 1) %>% # Don't get everything in the demo
+  mutate(set_summary = purrr::map(theme_link, lego_get_sets)) %>%
+  unnest(set_summary) %>%
+  mutate(set_data = purrr::map(set_link, lego_get_set_data)) %>%
+  unnest(set_data) %>%
+  select(-set_Item) # Some variables are repeated
+
+set_data
+```

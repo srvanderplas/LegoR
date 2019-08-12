@@ -12,14 +12,14 @@ lego_get_themes <- function(url = "https://shop.lego.com/en-US/category/themes")
   . <- NULL
   doc <- xml2::read_html(url)
   tibble::tibble(
-    name = rvest::html_nodes(doc, "span[class*=CategoryLeafstyles__Title]") %>%
+    theme_name = rvest::html_nodes(doc, "span[class*=CategoryLeafstyles__Title]") %>%
       rvest::html_text(),
-    link = rvest::html_nodes(doc, "a[class*=DetailsLink]") %>%
+    theme_link = rvest::html_nodes(doc, "a[class*=DetailsLink]") %>%
       rvest::html_attr("href") %>%
       paste0("https://shop.lego.com", .),
-    description = rvest::html_nodes(doc, "div[class*=CategoryLeafstyles__Description]") %>%
+    theme_description = rvest::html_nodes(doc, "div[class*=CategoryLeafstyles__Description]") %>%
       rvest::html_text(),
-    age_range = rvest::html_nodes(doc, "span[class*=CategoryLeafstyles__AgeRange]") %>%
+    theme_age_range = rvest::html_nodes(doc, "span[class*=CategoryLeafstyles__AgeRange]") %>%
       rvest::html_text()
   )
 }
@@ -50,19 +50,19 @@ lego_get_sets_on_page <- function(url) {
   node_attr <- function(attr, ...) html_attr(html_nodes(...), name = attr)
 
   tibble::tibble(
-    flag = sets %>% purrr::map_chr(.f = node_or_NA,
+    set_flag = sets %>% purrr::map_chr(.f = node_or_NA,
                                    fun = node_text,
                                    css = "span[data-test*=product-flag]"),
-    Item = sets %>% purrr::map_chr(.f = node_or_NA, fun = node_text,
+    set_id = sets %>% purrr::map_chr(.f = node_or_NA, fun = node_text,
                                    css = "span[class*=ProductLeafSharedstyles__Code]"),
-    price = sets %>% purrr::map_chr(.f = node_or_NA, fun = node_text,
+    set_price = sets %>% purrr::map_chr(.f = node_or_NA, fun = node_text,
                                     css = "span[class*=ProductPrice__StyledText]") %>%
       readr::parse_number(),
-    title = sets %>% purrr::map_chr(.f = node_or_NA, fun = node_text,
+    set_title = sets %>% purrr::map_chr(.f = node_or_NA, fun = node_text,
                                     css = "h2[class*=ProductLeafSharedstyles__Title] span"),
-    link = sets %>% purrr::map_chr(.f = node_or_NA, fun = node_attr,
-                                   css = "a[data-test*=product-leaf-title-link]",
-                                   attr = "href") %>%
+    set_link = sets %>% purrr::map_chr(.f = node_or_NA, fun = node_attr,
+                                       css = "a[data-test*=product-leaf-title-link]",
+                                       attr = "href") %>%
       paste0("https://shop.lego.com", .)
   )
 }
@@ -83,12 +83,17 @@ lego_get_sets <- function(url) {
   . <- NULL
   doc <- xml2::read_html(url)
   
-  n_pages <- rvest::html_node(doc, "span[class*=PaginationBadgerstyles__Text]") %>%
+  n_pages <- rvest::html_nodes(doc, css="*[data-test=pagination-index]") %>%
     rvest::html_text() %>%
     stringr::str_extract_all("\\d{1,}") %>%
     unlist() %>%
     readr::parse_number() %>%
     max()
+  
+  if (length(n_pages) == 0 | is.na(n_pages)) {
+    warning("n_pages not detected. Scraping first page only.")
+    n_pages <- 1
+  }
   
   urls <- stringr::str_remove(url, "\\?.*$") %>%
     paste0(., "?page=", 1:n_pages)
@@ -110,10 +115,10 @@ lego_get_sets <- function(url) {
 #' @examples 
 #' library(LegoR)
 #' sets <- lego_get_sets("https://shop.lego.com/en-US/category/creator-3-in-1")
-#' lego_get_set_data(sets$link[1]) # get one set
+#' lego_get_set_data(sets$set_link[1]) # get one set
 #' sets <- sets %>%
-#'   dplyr::mutate(set_info = purrr::map(link, lego_get_set_data)) %>%
-#'   tidyr::unnest()
+#'   dplyr::mutate(set_info = purrr::map(set_link, lego_get_set_data)) %>%
+#'   tidyr::unnest(set_info)
 lego_get_set_data <- function(url) {
   . <- NULL
   doc <- xml2::read_html(url)
@@ -121,11 +126,11 @@ lego_get_set_data <- function(url) {
   rvest::html_nodes(doc, "dl[class*=ProductDetails__ProductAttribute]") %>%
     purrr::map_dfc(function(x) {
       tibble::tibble(a = rvest::html_node(x, "dd") %>% rvest::html_text()) %>% 
-        purrr::set_names(rvest::html_node(x, "dt") %>% rvest::html_text())
+        purrr::set_names(rvest::html_node(x, "dt") %>% rvest::html_text() %>% paste0("set_", .))
     }) %>%
     purrr::set_names(make.names(names(.))) %>%
     dplyr::mutate(
-      minifigs = node_or_NA(
+      set_minifigs = node_or_NA(
         doc, 
         function(.) rvest::html_nodes(., "p:contains(minifig)") %>% 
           rvest::html_text() %>%
@@ -133,24 +138,24 @@ lego_get_set_data <- function(url) {
           stringr::str_remove_all("\\D") %>%
           readr::parse_number()
       ),
-      availability = node_or_NA(
+      set_availability = node_or_NA(
         doc, 
         function(.) rvest::html_nodes(., "p[class*=ProductOverviewstyles__AvailabilityStatus]") %>%
           rvest::html_text()
       ),
-      review_count = node_or_NA(
+      set_review_count = node_or_NA(
         doc, 
         function(.) rvest::html_nodes(., "span[itemprop*=reviewCount]") %>%
         rvest::html_text() %>% 
         readr::parse_number()
       ),
-      rating_value = node_or_NA(
+      set_rating_value = node_or_NA(
         doc, 
         function(.) rvest::html_nodes(., "span[itemprop*=ratingValue]") %>%
         rvest::html_text() %>% 
         readr::parse_number()
       ),
-      best_rating = node_or_NA(
+      set_best_rating = node_or_NA(
         doc, 
         function(.) rvest::html_nodes(., "span[itemprop*=bestRating]") %>%
         rvest::html_text() %>% 
