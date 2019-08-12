@@ -27,5 +27,8 @@ Imports:
     usethis,
     xml2
 Suggests:
-    qpdf
+    qpdf,
+    knitr,
+    rmarkdown
 RoxygenNote: 6.1.1
+VignetteBuilder: knitr
