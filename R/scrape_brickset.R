@@ -653,6 +653,7 @@ brickset_get_subthemes <- function(
 #' @importFrom purrr map map_dfr map_dfc set_names modify_at
 #' @importFrom tibble tibble
 #' @importFrom readr parse_number
+#' @export
 #' @examples
 #' \dontrun{
 #' brickset_get_years(theme = "Pirates")
