@@ -16,6 +16,7 @@ Imports:
     clipr,
     dplyr,
     httr,
+    jsonlite,
     lubridate,
     magrittr,
     purrr,
