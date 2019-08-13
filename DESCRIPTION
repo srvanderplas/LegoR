@@ -28,6 +28,7 @@ Imports:
     usethis,
     xml2
 Suggests:
+    covr,
     qpdf,
     knitr,
     rmarkdown,

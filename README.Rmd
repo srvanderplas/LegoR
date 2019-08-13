@@ -21,6 +21,7 @@ knitr::opts_chunk$set(
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://www.tidyverse.org/lifecycle/#experimental)
 [![Last-changedate](https://img.shields.io/badge/last%20change-`r gsub('-', '--', Sys.Date())`-yellowgreen.svg)](/commits/master)
 [![Travis build status](https://travis-ci.org/srvanderplas/LegoR.svg?branch=master)](https://travis-ci.org/srvanderplas/LegoR)
+[![Codecov test coverage](https://codecov.io/gh/srvanderplas/LegoR/branch/master/graph/badge.svg)](https://codecov.io/gh/srvanderplas/LegoR?branch=master)
 <!-- badges: end -->
 
 The goal of LegoR is to make it easy to get Lego-centric data into R.
