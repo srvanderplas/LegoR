@@ -6,6 +6,12 @@
 \usage{
 rebrickable_parse_api_res(res)
 }
+\arguments{
+\item{res}{response from API}
+}
+\value{
+tibble with response status, content (list col), headers (list col), url, date, times (list col), and request (list col)
+}
 \description{
 Function to format API response
 }
