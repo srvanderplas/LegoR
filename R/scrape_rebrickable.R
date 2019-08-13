@@ -228,7 +228,8 @@ rebrickable_api_all <- function(api_res) {
 #'   rebrickable_colors()
 #' }
 rebrickable_colors <- function(key = rebrickable_key(), ..., parse = T) {
-
+  . <- external_ids <- NULL
+  
   color_res <- rebrickable_api("colors", ..., api_key = key)
   if (parse) {
     content_list <- color_res$content %>%
@@ -293,6 +294,7 @@ rebrickable_color_info <- function(id = 1, key = rebrickable_key(), ..., parse =
 }
 
 fix_color_mapping <- function(lst) {
+  . <- NULL
   reg_cols <- lst[!grepl("external", names(lst))] %>% tibble::as_tibble()
   
   problem_cols <- lst[grepl("external", names(lst))] %>%

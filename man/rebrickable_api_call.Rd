@@ -8,6 +8,8 @@ rebrickable_api_call(url, retry = 5)
 }
 \arguments{
 \item{url}{url to GET}
+
+\item{retry}{number of times to retry curl call}
 }
 \value{
 results in the form of a list from GET
