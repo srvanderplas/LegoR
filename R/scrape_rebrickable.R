@@ -136,6 +136,7 @@ rebrickable_api <- function(where, api_key = rebrickable_key(), default_args = l
 
 #' Do-while loop for GET to handle rcurl being flaky
 #' @param url url to GET
+#' @param retry number of times to retry curl call
 #' @return results in the form of a list from GET
 rebrickable_api_call <- function(url, retry = 5) {
   # I hate myself for having to do it this way...
