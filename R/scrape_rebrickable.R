@@ -182,16 +182,16 @@ rebrickable_api_all <- function(api_res) {
   # message("in recursion")
   stopifnot("rebrickable_api" %in% class(api_res))
 
-  content_list <- unlist(api_res$content, recursive = F)
+  next_link <- stringr::str_extract(api_res$content, "\\\"next\\\":\\\"https[:/a-z.0-9?=&]{1,}\\\"") %>%
+    stringr::str_remove_all("\\\"") %>%
+    stringr::str_remove_all("next:")
 
-  if ("next" %in% names(content_list)) {
-      if (!is.null(content_list$`next`)) {
-        nextpg <- rebrickable_api_call(content_list$`next`)
-
-        nextpg_res <- rebrickable_parse_api_res(nextpg)
-
-        return(dplyr::bind_rows(api_res, rebrickable_api_all(nextpg_res)))
-      } else {}
+  if (!is.na(next_link)) {
+    nextpg <- rebrickable_api_call(next_link)
+    
+    nextpg_res <- rebrickable_parse_api_res(nextpg)
+    
+    return(dplyr::bind_rows(api_res, rebrickable_api_all(nextpg_res)))
   }
   return(api_res)
 }
