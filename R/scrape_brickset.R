@@ -152,6 +152,7 @@ brickset_auth <- function(key = brickset_key(), username = brickset_username(),
     assign(".brickset_key", key, pos = .GlobalEnv)
     assign(".brickset_username", username, pos = .GlobalEnv)
     assign(".brickset_password", password, pos = .GlobalEnv)
+    Sys.setenv(brickset_key = .brickset_key, brickset_username = .brickset_username, brickset_password = .brickset_password)
   }
 
   url_pattern <- "https://brickset.com/api/v2.asmx/login?apiKey=%s&username=%s&password=%s"

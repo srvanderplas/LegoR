@@ -57,18 +57,24 @@ rebrickable_save_credentials <- function(api_key, profile_save = "user") {
   if (!is.null(profile_save)) {
     clipr::write_clip(sprintf(".rebrickable_key = '%s'", api_key))
 
-    if (usethis::ui_yeah(sprintf("Are you ok with adding these to your %s Rprofile?", profile_save))) {
-      usethis::edit_r_profile(profile_save)
-      message("The values have been copied to your clipboard. Paste them into the R profile file and save.")
+    if (interactive()) {
+      if (usethis::ui_yeah(sprintf("Are you ok with adding these to your %s Rprofile?", profile_save))) {
+        usethis::edit_r_profile(profile_save)
+        message("The values have been copied to your clipboard. Paste them into the R profile file and save.")
+      } else {
+        message("The values have been copied to your clipboard. Save them in a safe place of your choosing.")
+      }
     } else {
-      message("The values have been copied to your clipboard. Save them in a safe place of your choosing.")
+      message("Session is not interactive. Values have been copied to the clipboard.")
     }
-  } else {
-    if (is.null(rebrickable_key())) {
-      assign(".rebrickable_key", api_key, pos = .GlobalEnv)
-    }
-  }
 
+  }
+  
+  if (is.null(rebrickable_key())) {
+    assign(".rebrickable_key", api_key, pos = .GlobalEnv)
+  }
+  
+  Sys.setenv(rebrickable_key = .rebrickable_key)
   source("~/.Rprofile")
 }
 
