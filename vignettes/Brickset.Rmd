@@ -10,14 +10,18 @@ vignette: >
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  include = T,
+  dpi = 300
 )
+if (file.exists("../.Rprofile")) source("../.Rprofile")
 ```
 
 ```{r setup}
 library(LegoR)
 library(dplyr)
 library(tidyr)
+library(ggplot2)
 ```
 
 
@@ -96,7 +100,7 @@ disney_castle_instructions <- brickset_get_instructions(disney_castle$setid)
 ```
 The first link is [here](https://www.lego.com/biassets/bi/6194211.pdf) and shows the full instruction set for building a disney castle.
 
-```{r, eval = exists(".brickset_key")}
+```{r, eval = exists(".brickset_key"), fig.width = 8, fig.height = 6}
 disney_castle_reviews <- brickset_get_reviews(disney_castle$setid)
 
 disney_castle_reviews %>% 
