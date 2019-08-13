@@ -6,6 +6,8 @@
 \alias{LegoR-package}
 \title{LegoR: Package to scrape data from shop.lego.com and brickset}
 \description{
+\if{html}{\figure{logo.png}{options: align='right'}}
+
 Collects data from shop.lego.com and brickset for integration. The inst folder includes a script to automatically update downloaded data.
 }
 \author{
