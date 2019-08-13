@@ -170,6 +170,10 @@ rebrickable_parse_api_res <- function(res) {
   res_tbl
 }
 
+#' Get all pages from the rebrickable api
+#' 
+#' Follows 'next' links returned by API calls, appending the results into
+#' a tibble so that each tibble row corresponds to a single call.
 #' @param api_res rebrickable_api return object
 #' @return tibble of rebrickable_api return objects
 #' @importFrom dplyr bind_rows
