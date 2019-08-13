@@ -196,17 +196,17 @@ rebrickable_api_all <- function(api_res) {
   return(api_res)
 }
 
-
-rebrickable_unnest_colors <- function(xid, xext_df) {
-
-  tibble(id = xid,
-         dfr = purrr::map2(xext_df$ext_ids, xext_df$ext_descrs, function(a, b){
-           tibble(ext_ids = a, ext_descrs = purrr::map(b, as.character)) %>%
-             tidyr::unnest()
-         })) %>%
-    tidyr::unnest(dfr)
-
-}
+# 
+# rebrickable_unnest_colors <- function(xid, xext_df) {
+# 
+#   tibble(id = xid,
+#          dfr = purrr::map2(xext_df$ext_ids, xext_df$ext_descrs, function(a, b){
+#            tibble(ext_ids = a, ext_descrs = purrr::map(b, as.character)) %>%
+#              tidyr::unnest()
+#          })) %>%
+#     tidyr::unnest(dfr)
+# 
+# }
 
 
 #' Get a data frame of all brick colors
@@ -215,50 +215,87 @@ rebrickable_unnest_colors <- function(xid, xext_df) {
 #' @param ... other arguments (page, page_size, ordering)
 #' @param parse Return results as a formatted tbl without the response information?
 #' @export
+#' @examples 
+#' if (exists(".rebrickable_key")) {
+#'   rebrickable_colors()
+#' }
 rebrickable_colors <- function(key = rebrickable_key(), ..., parse = T) {
 
-  color_res <- rebrickable_api("colors", api_key = key)
-
+  color_res <- rebrickable_api("colors", ..., api_key = key)
   if (parse) {
-    content_list <- jsonlite::parse_json(color_res$content[[1]])
+    content_list <- color_res$content %>%
+      str_remove("\\\"count\\\":\\d{1,},") %>%
+      str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+      str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+      purrr::map_df(function(x) {
+        x %>%
+          jsonlite::parse_json() %>%
+          unlist(recursive = F) %>%
+          purrr::map_if(purrr::is_list, tibble::as_tibble, .name_repair = "minimal") %>%
+          purrr::map_df(function(x) dplyr::select(x, -external_ids) %>% unique())
+      }) 
 
-    main_df <- content_list$results %>%
-      purrr::map_if(purrr::is_list, tibble::as_tibble) %>%
-      purrr::map_df(~tidyr::nest(., external_ids)) %>%
-      dplyr::rename(external_color_id = data)
-    # external_color_mapping <- dplyr::select(main_df, id, external_color_id) %>%
-    #   tidyr::unnest() %>%
-    #   purrr::modify_at("external_ids", function(x) x %>% dplyr::bind_cols())
-    # # dplyr::bind_cols() %>% tidyr::unnest(ext_ids) %>% tidyr::unnest() %>% tidyr::unnest()
-    #
-    #   purrr::modify_at("external_ids", purrr::map_if(., purrr::is_list, function(x) x %>% tibble::as_tibble(.name_repair = "unique")))
-    # %>%
-    #   purrr::map2(.x = ., .y = main_df$id, ~mutate(.x, var = c("ext_id", "ext_value"), id = .y)) %>%
-    #   purrr::map(~tidyr::gather(., key = site, value = value, -var)) %>%
-    #   purrr::map_df(~tidyr::spread(., key = var, value = value)) %>%
-    #
-    #   tidyr::unnest()
-
-    color_res %>%
-      rename(original_content = content) %>%
-      mutate(content = list(main_df))
-
+    parsed_content <- content_list
+    return(list(parsed_content = parsed_content, full_res = color_res))
+  } else {
+    return(color_res)
   }
 }
 
-#
-# rebrickable_api("colors")
-#
-# tmp <- httr::GET("https://rebrickable.com/api/v3/lego/colors/?key=2387cd1ec974d99374795f15087e3b32")
-# tmp$content %>% xml2::read_html() %>% rvest::html_text() %>% jsonlite::fromJSON()
-#
-# tmp$url
-# tmp$status_code
-# tmp$headers
-# tmp$all_headers
-# tmp$cookies
-# tmp$content
-# tmp$date
-# tmp$times
-# tmp$request
-# tmp$handle
+#' Get a data frame of information about a specific brick color
+#' 
+#' @param id a single numerical color ID
+#' @param key API key (pulled from environment if saved via rebrickable_save_credentials)
+#' @param ... other arguments (page, page_size, ordering)
+#' @param parse Return results as a formatted tbl without the response information?
+#' @importFrom assertthat assert_that
+#' @importFrom jsonlite parse_json
+#' @importFrom stringr str_remove
+#' @importFrom purrr map_df map_if is_list
+#' @importFrom tibble as_tibble
+#' @importFrom dplyr select
+#' @export
+#' @examples 
+#' if (exists(".rebrickable_key")) {
+#'   rebrickable_color_info(id = 1)
+#' }
+rebrickable_color_info <- function(id = 1, key = rebrickable_key(), ..., parse = T) {
+  
+  assertthat::assert_that(length(id) == 1)
+  
+  color_res <- rebrickable_api(sprintf("colors/%d/", id), ..., api_key = key)
+  if (parse) {
+    content_list <- color_res$content %>%
+      stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
+      stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+      stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+      purrr::map_df(function(x) {
+        x %>%
+          jsonlite::parse_json() %>%
+          unlist(recursive = F) %>%
+          purrr::map_if(purrr::is_list, tibble::as_tibble, .name_repair = "minimal") %>%
+          fix_color_mapping
+      }) 
+    
+    parsed_content <- content_list
+    return(list(parsed_content = parsed_content, full_res = color_res))
+  } else {
+    return(color_res)
+  }
+}
+
+fix_color_mapping <- function(lst) {
+  reg_cols <- lst[!grepl("external", names(lst))] %>% tibble::as_tibble()
+  
+  problem_cols <- lst[grepl("external", names(lst))] %>%
+    purrr::map2(., names(.), 
+                              function(x, y) x %>% 
+                                dplyr::mutate(type = gsub("external_ids\\.", "", y))) %>%
+  purrr::map(~tidyr::unnest(., cols = ext_ids)) %>%
+  purrr::map(~tidyr::unnest(., cols = ext_descrs)) %>%
+  purrr::map_df(~dplyr::mutate(., ext_descrs = unlist(ext_descrs)))
+
+  reg_cols$external_mapping <- list(problem_cols)
+  
+  reg_cols
+}
