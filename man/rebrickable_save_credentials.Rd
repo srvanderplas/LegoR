@@ -4,12 +4,17 @@
 \alias{rebrickable_save_credentials}
 \title{Save rebrickable credentials to Rprofile file}
 \usage{
-rebrickable_save_credentials(api_key, profile_save = "user")
+rebrickable_save_credentials(api_key, profile_save = "user",
+  sys_env_var = "rebrickable_key", global_var = ".rebrickable_key")
 }
 \arguments{
 \item{api_key}{API key.}
 
 \item{profile_save}{Save information to R profile? One of "user", "project", or NULL (to not save information)}
+
+\item{sys_env_var}{Variable name to use if saving system environment variable. Do not change - parameter for testing purposes only.}
+
+\item{global_var}{Variable name to use if saving global variable. Do not change - parameter for testing purposes only.}
 }
 \description{
 Opens the user's Rprofile file and pastes the values to the clipboard, then

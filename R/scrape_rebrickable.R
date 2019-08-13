@@ -45,6 +45,8 @@ rebrickable_setup <- function() {
 #'
 #' @param api_key API key.
 #' @param profile_save Save information to R profile? One of "user", "project", or NULL (to not save information)
+#' @param sys_env_var Variable name to use if saving system environment variable. Do not change - parameter for testing purposes only.
+#' @param global_var Variable name to use if saving global variable. Do not change - parameter for testing purposes only.
 #' @importFrom usethis edit_r_profile ui_yeah
 #' @importFrom clipr write_clip
 #' @export
@@ -52,10 +54,13 @@ rebrickable_setup <- function() {
 #' \dontrun{
 #' # rebrickable_save_credentials("your_api_key")
 #' }
-rebrickable_save_credentials <- function(api_key, profile_save = "user") {
+rebrickable_save_credentials <- function(api_key, profile_save = "user", 
+                                         sys_env_var = "rebrickable_key", 
+                                         global_var = ".rebrickable_key") {
 
   if (!is.null(profile_save)) {
-    clipr::write_clip(sprintf(".rebrickable_key = '%s'", api_key))
+    clipr::write_clip(sprintf("%s = '%s'", global_var, api_key),
+                      allow_non_interactive = TRUE)
 
     if (interactive()) {
       if (usethis::ui_yeah(sprintf("Are you ok with adding these to your %s Rprofile?", profile_save))) {
@@ -70,18 +75,20 @@ rebrickable_save_credentials <- function(api_key, profile_save = "user") {
 
   }
   
-  if (is.null(rebrickable_key())) {
-    assign(".rebrickable_key", api_key, pos = .GlobalEnv)
+  if (is.null(rebrickable_key(global_var))) {
+    assign(global_var, api_key, pos = .GlobalEnv)
   }
   
-  Sys.setenv(rebrickable_key = .rebrickable_key)
+  arglist <- list(api_key)
+  names(arglist) <- sys_env_var
+  do.call(Sys.setenv, arglist)
   source("~/.Rprofile")
 }
 
 
-rebrickable_key <- function() {
-  if (exists(".rebrickable_key")) {
-    return(.rebrickable_key)
+rebrickable_key <- function(nm = ".rebrickable_key") {
+  if (exists(nm)) {
+    return(eval(nm))
   }
   return(NULL)
 }
