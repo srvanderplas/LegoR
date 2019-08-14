@@ -54,8 +54,8 @@ rebrickable_setup <- function() {
 #' \dontrun{
 #' # rebrickable_save_credentials("your_api_key")
 #' }
-rebrickable_save_credentials <- function(api_key, profile_save = "user", 
-                                         sys_env_var = "rebrickable_key", 
+rebrickable_save_credentials <- function(api_key, profile_save = "user",
+                                         sys_env_var = "rebrickable_key",
                                          global_var = ".rebrickable_key") {
 
   if (!is.null(profile_save)) {
@@ -74,15 +74,16 @@ rebrickable_save_credentials <- function(api_key, profile_save = "user",
     }
 
   }
-  
+
   if (is.null(rebrickable_key(global_var))) {
     assign(global_var, api_key, pos = .GlobalEnv)
   }
-  
+
   arglist <- list(api_key)
   names(arglist) <- sys_env_var
   do.call(Sys.setenv, arglist)
-  source("~/.Rprofile")
+  if (file.exists(here::here(".Rprofile"))) source(here::here(".Rprofile"))
+  if (file.exists("~/.Rprofile")) source("~/.Rprofile")
 }
 
 
@@ -179,7 +180,7 @@ rebrickable_parse_api_res <- function(res) {
 }
 
 #' Get all pages from the rebrickable api
-#' 
+#'
 #' Follows 'next' links returned by API calls, appending the results into
 #' a tibble so that each tibble row corresponds to a single call.
 #' @param api_res rebrickable_api return object
@@ -196,24 +197,24 @@ rebrickable_api_all <- function(api_res) {
 
   if (!is.na(next_link)) {
     nextpg <- rebrickable_api_call(next_link)
-    
+
     nextpg_res <- rebrickable_parse_api_res(nextpg)
-    
+
     return(dplyr::bind_rows(api_res, rebrickable_api_all(nextpg_res)))
   }
   return(api_res)
 }
 
-# 
+#
 # rebrickable_unnest_colors <- function(xid, xext_df) {
-# 
+#
 #   tibble(id = xid,
 #          dfr = purrr::map2(xext_df$ext_ids, xext_df$ext_descrs, function(a, b){
 #            tibble(ext_ids = a, ext_descrs = purrr::map(b, as.character)) %>%
 #              tidyr::unnest()
 #          })) %>%
 #     tidyr::unnest(dfr)
-# 
+#
 # }
 
 
@@ -223,13 +224,13 @@ rebrickable_api_all <- function(api_res) {
 #' @param ... other arguments (page, page_size, ordering)
 #' @param parse Return results as a formatted tbl without the response information?
 #' @export
-#' @examples 
+#' @examples
 #' if (exists(".rebrickable_key")) {
 #'   rebrickable_colors()
 #' }
 rebrickable_colors <- function(key = rebrickable_key(), ..., parse = T) {
   . <- external_ids <- NULL
-  
+
   color_res <- rebrickable_api("colors", ..., api_key = key)
   if (parse) {
     content_list <- color_res$content %>%
@@ -242,7 +243,7 @@ rebrickable_colors <- function(key = rebrickable_key(), ..., parse = T) {
           unlist(recursive = F) %>%
           purrr::map_if(purrr::is_list, tibble::as_tibble, .name_repair = "minimal") %>%
           purrr::map_df(function(x) dplyr::select(x, -external_ids) %>% unique())
-      }) 
+      })
 
     parsed_content <- content_list
     return(list(parsed_content = parsed_content, full_res = color_res))
@@ -252,7 +253,7 @@ rebrickable_colors <- function(key = rebrickable_key(), ..., parse = T) {
 }
 
 #' Get a data frame of information about a specific brick color
-#' 
+#'
 #' @param id a single numerical color ID
 #' @param key API key (pulled from environment if saved via rebrickable_save_credentials)
 #' @param ... other arguments (page, page_size, ordering)
@@ -264,14 +265,14 @@ rebrickable_colors <- function(key = rebrickable_key(), ..., parse = T) {
 #' @importFrom tibble as_tibble
 #' @importFrom dplyr select
 #' @export
-#' @examples 
+#' @examples
 #' if (exists(".rebrickable_key")) {
 #'   rebrickable_color_info(id = 1)
 #' }
 rebrickable_color_info <- function(id = 1, key = rebrickable_key(), ..., parse = T) {
-  
+
   assertthat::assert_that(length(id) == 1)
-  
+
   color_res <- rebrickable_api(sprintf("colors/%d/", id), ..., api_key = key)
   if (parse) {
     content_list <- color_res$content %>%
@@ -284,8 +285,8 @@ rebrickable_color_info <- function(id = 1, key = rebrickable_key(), ..., parse =
           unlist(recursive = F) %>%
           purrr::map_if(purrr::is_list, tibble::as_tibble, .name_repair = "minimal") %>%
           fix_color_mapping
-      }) 
-    
+      })
+
     parsed_content <- content_list
     return(list(parsed_content = parsed_content, full_res = color_res))
   } else {
@@ -296,16 +297,16 @@ rebrickable_color_info <- function(id = 1, key = rebrickable_key(), ..., parse =
 fix_color_mapping <- function(lst) {
   . <- NULL
   reg_cols <- lst[!grepl("external", names(lst))] %>% tibble::as_tibble()
-  
+
   problem_cols <- lst[grepl("external", names(lst))] %>%
-    purrr::map2(., names(.), 
-                              function(x, y) x %>% 
+    purrr::map2(., names(.),
+                              function(x, y) x %>%
                                 dplyr::mutate(type = gsub("external_ids\\.", "", y))) %>%
   purrr::map(~tidyr::unnest(., cols = ext_ids)) %>%
   purrr::map(~tidyr::unnest(., cols = ext_descrs)) %>%
   purrr::map_df(~dplyr::mutate(., ext_descrs = unlist(ext_descrs)))
 
   reg_cols$external_mapping <- list(problem_cols)
-  
+
   reg_cols
 }
