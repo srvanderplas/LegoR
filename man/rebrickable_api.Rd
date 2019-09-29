@@ -19,5 +19,7 @@ rebrickable_api(where, api_key = rebrickable_key(),
 \item{follow_next}{If response contains a 'next' argument, should it be followed?}
 }
 \description{
-General helper for handling the brickset API.
+General helper for handling the brickset API. Only call this directly if you 
+know what you're doing with APIs - it is exposed because all of the API 
+functions are not wrapped in this package.
 }

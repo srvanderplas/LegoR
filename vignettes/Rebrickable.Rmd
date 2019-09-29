@@ -1,0 +1,70 @@
+---
+title: "Rebrickable"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Rebrickable}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  include = T,
+  dpi = 300
+)
+if (file.exists("../.Rprofile")) source("../.Rprofile")
+```
+
+```{r setup}
+library(LegoR)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+Rebrickable.com contains data on lego sets, pieces, links to instructions, and more. API info is available at https://rebrickable.com/api/. If you are planning to make many calls to the API, it may be faster to download their entire database at https://rebrickable.com/downloads/ instead.
+
+To get started using the API, you'll need to register for a key. Run the following command to get set up. 
+
+```{r, eval = F}
+rebrickable_setup()
+```
+
+If you want to make your key part of your .Rprofile so that you don't have to remember it, use the `rebrickable_save_credentials` function:
+```{r, eval = F}
+rebrickable_save_credentials("your api key")
+```
+
+## Basic API Calls
+
+Every API call can return a list containing the parsed (formatted) content as well as the original call information. 
+
+```{r}
+colors <- rebrickable_colors(parse = F, follow_next = F)
+colors$parsed_content
+colors$full_res
+```
+
+By default, each command will follow "next" links to get all available pages of information. To turn this off, set `follow_next = F`. 
+
+Rebrickable contains detailed information on the parts in each set (including colors), as well as theme information, which is also available at sites like Brickset. 
+
+```{r}
+lego_set <- rebrickable_set_info("71040-1")
+```
+
+```{r, out.width = "80%"}
+knitr::include_graphics(lego_set$set_img_url)
+```
+
+We can get the pieces in this particular set:
+```{r}
+parts <- rebrickable_set_parts(set_id = "71040-1", page_size = 400, follow_next = T)
+```
+
+And even view the images of the 24 most common pieces in the set
+```{r, fig.show = "hold", out.width = "10%"}
+knitr::include_graphics(arrange(parts, desc(quantity))$part_img_url[1:24])
+```
