@@ -89,7 +89,7 @@ rebrickable_save_credentials <- function(api_key, profile_save = "user",
 
 rebrickable_key <- function(nm = ".rebrickable_key") {
   if (exists(nm)) {
-    return(eval(nm))
+    return(eval(as.name(nm)))
   }
   return(NULL)
 }
@@ -97,7 +97,10 @@ rebrickable_key <- function(nm = ".rebrickable_key") {
 
 #' Generic API call
 #'
-#' General helper for handling the brickset API.
+#' General helper for handling the brickset API. Only call this directly if you 
+#' know what you're doing with APIs - it is exposed because all of the API 
+#' functions are not wrapped in this package.
+#' 
 #' @param where API endpoint
 #' @param api_key API key (pulled from .rebrickable_key if it exists)
 #' @param default_args default API args
@@ -110,7 +113,7 @@ rebrickable_key <- function(nm = ".rebrickable_key") {
 #' @importFrom jsonlite fromJSON
 #' @importFrom assertthat assert_that
 #' @importFrom jsonlite fromJSON
-#'
+#' @export
 rebrickable_api <- function(where, api_key = rebrickable_key(), default_args = list(), ..., follow_next = TRUE) {
   assertthat::assert_that(!is.null(api_key))
 
@@ -122,7 +125,8 @@ rebrickable_api <- function(where, api_key = rebrickable_key(), default_args = l
     # URL-encode values
     utils::URLencode()
 
-  url <- sprintf("https://rebrickable.com/api/v3/lego/%s/?%s", where, arg_str)
+  if(arg_str != "") arg_str <- paste0("?", arg_str)
+  url <- sprintf("http://rebrickable.com/api/v3/lego/%s/%s", where, arg_str)
 
   res <- rebrickable_api_call(url)
 
@@ -191,11 +195,13 @@ rebrickable_api_all <- function(api_res) {
   # message("in recursion")
   stopifnot("rebrickable_api" %in% class(api_res))
 
-  next_link <- stringr::str_extract(api_res$content, "\\\"next\\\":\\\"https[:/a-z.0-9?=&]{1,}\\\"") %>%
+  next_link <- stringr::str_extract(api_res$content, "next(.*)previous") %>%
+    stringr::str_remove_all("next|previous") %>%
     stringr::str_remove_all("\\\"") %>%
-    stringr::str_remove_all("next:")
+    stringr::str_remove_all("^:") %>%
+    stringr::str_remove_all(",$")
 
-  if (!is.na(next_link)) {
+  if (!is.na(next_link) & next_link != "null") {
     nextpg <- rebrickable_api_call(next_link)
 
     nextpg_res <- rebrickable_parse_api_res(nextpg)
@@ -232,29 +238,28 @@ rebrickable_colors <- function(key = rebrickable_key(), ..., parse = T) {
   . <- external_ids <- NULL
 
   color_res <- rebrickable_api("colors", ..., api_key = key)
+  content_list <- color_res$content %>%
+    stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
+    stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    purrr::map_df(function(x) {
+      x %>%
+        jsonlite::parse_json() %>%
+        unlist(recursive = F) %>%
+        purrr::map_if(purrr::is_list, tibble::as_tibble, .name_repair = "minimal") %>%
+        purrr::map_df(function(x) dplyr::select(x, -external_ids) %>% unique())
+    })
+  
   if (parse) {
-    content_list <- color_res$content %>%
-      str_remove("\\\"count\\\":\\d{1,},") %>%
-      str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
-      str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
-      purrr::map_df(function(x) {
-        x %>%
-          jsonlite::parse_json() %>%
-          unlist(recursive = F) %>%
-          purrr::map_if(purrr::is_list, tibble::as_tibble, .name_repair = "minimal") %>%
-          purrr::map_df(function(x) dplyr::select(x, -external_ids) %>% unique())
-      })
-
-    parsed_content <- content_list
-    return(list(parsed_content = parsed_content, full_res = color_res))
+    return(content_list)
   } else {
-    return(color_res)
+    return(list(parsed_content = content_list, full_res = color_res))
   }
 }
 
 #' Get a data frame of information about a specific brick color
 #'
-#' @param id a single numerical color ID
+#' @param color_id a single numerical color ID
 #' @param key API key (pulled from environment if saved via rebrickable_save_credentials)
 #' @param ... other arguments (page, page_size, ordering)
 #' @param parse Return results as a formatted tbl without the response information?
@@ -267,30 +272,30 @@ rebrickable_colors <- function(key = rebrickable_key(), ..., parse = T) {
 #' @export
 #' @examples
 #' if (exists(".rebrickable_key")) {
-#'   rebrickable_color_info(id = 1)
+#'   rebrickable_color_info(color_id = 1)
 #' }
-rebrickable_color_info <- function(id = 1, key = rebrickable_key(), ..., parse = T) {
+rebrickable_color_info <- function(color_id = 1, key = rebrickable_key(), ..., parse = T) {
 
-  assertthat::assert_that(length(id) == 1)
-
-  color_res <- rebrickable_api(sprintf("colors/%d/", id), ..., api_key = key)
+  assertthat::assert_that(length(color_id) == 1)
+  
+  color_res <- rebrickable_api(sprintf("colors/%s/", color_id), ..., api_key = key)
+  content_list <- color_res$content %>%
+    stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
+    stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    purrr::map_df(function(x) {
+      x %>%
+        jsonlite::parse_json() %>%
+        unlist(recursive = F) %>%
+        purrr::map_if(purrr::is_list, tibble::as_tibble, .name_repair = "minimal") %>%
+        fix_color_mapping
+    })
+  
+  
   if (parse) {
-    content_list <- color_res$content %>%
-      stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
-      stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
-      stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
-      purrr::map_df(function(x) {
-        x %>%
-          jsonlite::parse_json() %>%
-          unlist(recursive = F) %>%
-          purrr::map_if(purrr::is_list, tibble::as_tibble, .name_repair = "minimal") %>%
-          fix_color_mapping
-      })
-
-    parsed_content <- content_list
-    return(list(parsed_content = parsed_content, full_res = color_res))
+    return(content_list)
   } else {
-    return(color_res)
+    return(list(parsed_content = content_list, full_res = color_res))
   }
 }
 
@@ -310,3 +315,473 @@ fix_color_mapping <- function(lst) {
 
   reg_cols
 }
+
+
+#' Get a data frame of all part categories
+#'
+#' @param key API key (pulled from environment if saved via rebrickable_save_credentials)
+#' @param ... other arguments (page, page_size, ordering)
+#' @param parse Return results as a formatted tbl without the response information?
+#' @export
+#' @examples
+#' if (exists(".rebrickable_key")) {
+#'   rebrickable_part_categories()
+#' }
+rebrickable_part_categories <- function(key = rebrickable_key(), ..., parse = T) {
+  . <- external_ids <- NULL
+  
+  part_categories <- rebrickable_api("part_categories", ..., api_key = key)
+  content_list <- part_categories$content %>%
+    stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
+    stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    purrr::map_df(function(x) {
+      x %>%
+        jsonlite::parse_json() %>%
+        unlist(recursive = F) %>%
+        purrr::map_if(purrr::is_list, tibble::as_tibble, .name_repair = "minimal") %>%
+        bind_rows()
+    })
+  
+  attr(content_list, "full_call") <- part_categories
+  
+  return(content_list)
+}
+
+
+#' Get a data frame of information about a specific part category ID
+#'
+#' @param cat_id part category id
+#' @param key API key (pulled from environment if saved via rebrickable_save_credentials)
+#' @param ... other arguments (page, page_size, ordering)
+#' @param parse Return results as a formatted tbl without the response information?
+#' @export
+#' @examples
+#' if (exists(".rebrickable_key")) {
+#'   rebrickable_part_category_info(cat_id = 1)
+#' }
+rebrickable_part_category_info <- function(cat_id = 1, key = rebrickable_key(), ..., parse = T) {
+  . <- external_ids <- NULL
+  
+  assertthat::assert_that(length(cat_id) == 1)
+  part_categories <- rebrickable_api(sprintf("part_categories/%s/", cat_id), ..., api_key = key)
+  content_list <- part_categories$content %>%
+    stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
+    stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    purrr::map_df(function(x) {
+      x %>%
+        jsonlite::parse_json() %>%
+        unlist(recursive = F) %>%
+        purrr::map_if(purrr::is_list, tibble::as_tibble, .name_repair = "minimal") %>%
+        bind_rows()
+    })
+  
+  
+  if (parse) {
+    return(content_list)
+  } else {
+    return(list(parsed_content = content_list, full_res = part_categories))
+  }
+}
+
+
+#' Get a data frame of information about parts
+#'
+#' The parts API endpoint takes parameters page, page_size, part_num, part_nums,
+#' part_cat_id, color_id, bricklink_id, brickowl_id, legoid, ldraw_id, ordering, 
+#' and search (a search term).
+#' 
+#' Note that currently external IDs are not returned. 
+#' @param key API key (pulled from environment if saved via rebrickable_save_credentials)
+#' @param ... other arguments (page, page_size, ordering)
+#' @param parse Return results as a formatted tbl without the response information?
+#' @export
+#' @examples
+#' if (exists(".rebrickable_key")) {
+#'   rebrickable_parts(page = 1, follow_next = F)
+#' }
+rebrickable_parts <- function(key = rebrickable_key(), ..., parse = T) {
+  . <- external_ids <- NULL
+  
+  parts <- rebrickable_api("parts/", ..., api_key = key)
+  
+  content_list <- parts$content %>%
+    stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
+    stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    purrr::map_df(function(x) {
+      x %>%
+        jsonlite::parse_json(simplifyVector = T) %>%
+        `[[`("results") %>%
+        as_tibble()  %>%
+        dplyr::select(-dplyr::matches("external_ids"))
+    })
+  
+  
+  if (parse) {
+    return(content_list)
+  } else {
+    return(list(parsed_content = content_list, full_res = parts))
+  }
+}
+
+
+#' Get a data frame of information about a specific part
+#'
+#' @param part_id part ID
+#' @param key API key (pulled from environment if saved via rebrickable_save_credentials)
+#' @param ... other arguments (page, page_size, ordering)
+#' @param parse Return results as a formatted tbl without the response information?
+#' @export
+#' @examples
+#' if (exists(".rebrickable_key")) {
+#'   rebrickable_part_info(part_id = 31110)
+#' }
+rebrickable_part_info <- function(part_id = 1, key = rebrickable_key(), ..., parse = T) {
+  . <- external_ids <- NULL
+  
+  assertthat::assert_that(length(part_id) == 1)
+  part_categories <- rebrickable_api(sprintf("parts/%s/", part_id), ..., api_key = key)
+  content_list <- part_categories$content %>%
+    stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
+    stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    purrr::map_df(function(x) {
+      x %>%
+        jsonlite::parse_json() %>%
+        unlist(recursive = T) %>%
+        purrr::map_if(purrr::is_list, tibble::as_tibble, .name_repair = "minimal") %>%
+        bind_rows()
+    })
+  
+  
+  if (parse) {
+    return(content_list)
+  } else {
+    return(list(parsed_content = content_list, full_res = part_categories))
+  }
+}
+
+
+
+#' Get a list of all colors a part has appeared in
+#'
+#' @param part_id part ID
+#' @param key API key (pulled from environment if saved via rebrickable_save_credentials)
+#' @param ... other arguments (page, page_size, ordering)
+#' @param parse Return results as a formatted tbl without the response information?
+#' @export
+#' @examples
+#' if (exists(".rebrickable_key")) {
+#'   rebrickable_part_colors(part_id = 31110)
+#' }
+rebrickable_part_colors <- function(part_id = 1, key = rebrickable_key(), ..., parse = T) {
+  . <- external_ids <- NULL
+  
+  assertthat::assert_that(length(part_id) == 1)
+  part_colors <- rebrickable_api(sprintf("parts/%s/colors/", part_id), ..., api_key = key)
+  content_list <- part_colors$content %>%
+    stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
+    stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    purrr::map_df(function(x) {
+      x %>%
+        jsonlite::parse_json() %>%
+        unlist(recursive = F) %>%
+        purrr::map_if(purrr::is_list, tibble::as_tibble, .name_repair = "minimal") %>%
+        bind_rows() %>%
+        tidyr::unnest(elements) %>%
+        tidyr::nest(elements=c(elements))
+    })
+  
+  if (parse) {
+    return(content_list)
+  } else {
+    return(list(parsed_content = content_list, full_res = part_colors))
+  }
+}
+
+
+
+#' Get a list of all sets a part/color combination has appeared in
+#'
+#' @param part_id part ID
+#' @param color_id color ID
+#' @param key API key (pulled from environment if saved via rebrickable_save_credentials)
+#' @param ... other arguments (page, page_size, ordering)
+#' @param parse Return results as a formatted tbl without the response information?
+#' @export
+#' @examples
+#' if (exists(".rebrickable_key")) {
+#'   rebrickable_part_color_sets(part_id = 31110, color_id = 1)
+#' }
+rebrickable_part_color_sets <- function(part_id = 1, color_id = 1, key = rebrickable_key(), ..., parse = T) {
+  . <- external_ids <- NULL
+  
+  assertthat::assert_that(length(part_id) == 1)
+  assertthat::assert_that(length(color_id) == 1)
+  part_colors <- rebrickable_api(sprintf("parts/%s/colors/%s/sets/", part_id, color_id), ..., api_key = key)
+  content_list <- part_colors$content %>%
+    stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
+    stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    purrr::map_df(function(x) {
+      x %>%
+        jsonlite::parse_json() %>%
+        unlist(recursive = F) %>%
+        purrr::map_if(purrr::is_list, rbind) %>%
+        purrr::map_df(as.data.frame) %>%
+        dplyr::mutate_each(~ifelse(. == "NULL", NA, .))
+    })
+  
+  if (parse) {
+    return(content_list)
+  } else {
+    return(list(parsed_content = content_list, full_res = part_colors))
+  }
+}
+
+#' Get a data frame of information about sets
+#'
+#' The parts API endpoint takes parameters page, page_size, theme_id, min_year,
+#' max_year, min_parts, max_parts, ordering, and search.
+#' 
+#' @param key API key (pulled from environment if saved via rebrickable_save_credentials)
+#' @param ... other arguments (page, page_size, ordering)
+#' @param parse Return results as a formatted tbl without the response information?
+#' @export
+#' @examples
+#' if (exists(".rebrickable_key")) {
+#'   rebrickable_sets(min_year = 2018, max_year = 2019, min_parts = 20, page_size = 1000, follow_next = T)
+#' }
+rebrickable_sets <- function(key = rebrickable_key(), ..., parse = T) {
+  . <- external_ids <- NULL
+  
+  parts <- rebrickable_api("sets/", ..., api_key = key)
+  
+  content_list <- parts$content %>%
+    stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
+    stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    purrr::map_df(function(x) {
+      x %>%
+        jsonlite::parse_json(simplifyVector = T) %>%
+        `[[`("results") %>%
+        as_tibble() 
+    })
+  
+  
+  if (parse) {
+    return(content_list)
+  } else {
+    return(list(parsed_content = content_list, full_res = parts))
+  }
+}
+
+#' Get a data frame of information about a specific set
+#'
+#' @param set_id set ID
+#' @param key API key (pulled from environment if saved via rebrickable_save_credentials)
+#' @param ... other arguments (page, page_size, ordering)
+#' @param parse Return results as a formatted tbl without the response information?
+#' @export
+#' @examples
+#' if (exists(".rebrickable_key")) {
+#'   rebrickable_set_info(set_id = "40349-1")
+#' }
+rebrickable_set_info <- function(set_id = 1, key = rebrickable_key(), ..., parse = T) {
+  . <- external_ids <- NULL
+  
+  assertthat::assert_that(length(set_id) == 1)
+  part_categories <- rebrickable_api(sprintf("sets/%s/", set_id), ..., api_key = key)
+  content_list <- part_categories$content %>%
+    stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
+    stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    purrr::map_df(function(x) {
+      x %>%
+        jsonlite::parse_json() %>%
+        unlist(recursive = T) %>%
+        purrr::map_if(purrr::is_list, tibble::as_tibble, .name_repair = "minimal") %>%
+        bind_rows()
+    })
+  
+  
+  if (parse) {
+    return(content_list)
+  } else {
+    return(list(parsed_content = content_list, full_res = part_categories))
+  }
+}
+
+
+#' Get a data frame of information about alternate builds using only parts from a specific set
+#'
+#' @param set_id set ID
+#' @param key API key (pulled from environment if saved via rebrickable_save_credentials)
+#' @param ... other arguments (page, page_size, ordering)
+#' @param parse Return results as a formatted tbl without the response information?
+#' @export
+#' @examples
+#' if (exists(".rebrickable_key")) {
+#'   rebrickable_set_moc(set_id = "10266-1")
+#' }
+rebrickable_set_moc <- function(set_id = 1, key = rebrickable_key(), ..., parse = T) {
+  . <- external_ids <- NULL
+  
+  assertthat::assert_that(length(set_id) == 1)
+  part_categories <- rebrickable_api(sprintf("sets/%s/alternates/", set_id), ..., api_key = key)
+  content_list <- part_categories$content %>%
+    stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
+    stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    purrr::map_df(function(x) {
+      x %>%
+        jsonlite::parse_json() %>%
+        unlist(recursive = T) %>%
+        purrr::map_if(purrr::is_list, tibble::as_tibble, .name_repair = "minimal") %>%
+        bind_rows()
+    })
+  
+  
+  if (parse) {
+    return(content_list)
+  } else {
+    return(list(parsed_content = content_list, full_res = part_categories))
+  }
+}
+
+
+#' Get a data frame of information about pieces in a specific set
+#'
+#' Note that external IDs are not preserved in parsed results.
+#' 
+#' @param set_id set ID
+#' @param key API key (pulled from environment if saved via rebrickable_save_credentials)
+#' @param ... other arguments (page, page_size, ordering)
+#' @param parse Return results as a formatted tbl without the response information?
+#' @export
+#' @examples
+#' if (exists(".rebrickable_key")) {
+#'   rebrickable_set_parts(set_id = "40349-1")
+#' }
+rebrickable_set_parts <- function(set_id = 1, key = rebrickable_key(), ..., parse = T) {
+  . <- external_ids <- NULL
+  
+  assertthat::assert_that(length(set_id) == 1)
+  set_parts <- rebrickable_api(sprintf("sets/%s/parts/", set_id), ..., api_key = key)
+  content_list <- set_parts$content %>%
+    stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
+    stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    purrr::map_df(function(x) {
+      y <- x %>%
+        jsonlite::parse_json() %>%
+        `[[`("results") %>%
+        purrr::map(rbind)
+      
+      parts <- purrr::map(y, 3)
+      colors <- purrr::map(y, 4)
+      y2 <- y %>% purrr::modify_depth(~ifelse(is.null(.), NA, .), .depth = 2)
+      
+      purrr::map_df(y2, . %>% as_tibble() %>% dplyr::select(-one_of(c("part", "color"))) %>%
+        tidyr::unnest(cols = dplyr::everything(), keep_empty = T)) %>%
+        dplyr::mutate(parts = purrr::map(parts, . %>% rbind() %>% 
+                                           tibble::as_tibble() %>% 
+                                           dplyr::select(-external_ids, -print_of) %>%
+                                           tidyr::unnest(dplyr::everything()) %>%
+                                           dplyr::rename(part_name = name))) %>%
+        dplyr::mutate(colors = purrr::map(colors, .%>% rbind() %>%
+                                            tibble::as_tibble() %>%
+                                            dplyr::select(-external_ids) %>%
+                                            tidyr::unnest(dplyr::everything()) %>%
+                                            dplyr::rename(color_name = name, color_id = id))) %>%
+        dplyr::mutate(color_parts = purrr::map2(parts, colors, dplyr::bind_cols)) %>%
+        tidyr::unnest_wider(color_parts) %>%
+        select(-colors,-parts)
+    })
+  
+  
+  if (parse) {
+    return(content_list)
+  } else {
+    return(list(parsed_content = content_list, full_res = set_parts))
+  }
+}
+
+
+
+#' Get a data frame of all themes
+#'
+#' @param key API key (pulled from environment if saved via rebrickable_save_credentials)
+#' @param ... other arguments (page, page_size, ordering)
+#' @param parse Return results as a formatted tbl without the response information?
+#' @export
+#' @examples
+#' if (exists(".rebrickable_key")) {
+#'   rebrickable_themes()
+#' }
+rebrickable_themes <- function(key = rebrickable_key(), ..., parse = T) {
+  . <- external_ids <- NULL
+  
+  theme_res <- rebrickable_api("themes", ..., api_key = key)
+  content_list <- theme_res$content %>%
+    stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
+    stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    purrr::map_df(function(x) {
+      x %>%
+        jsonlite::parse_json(simplifyVector = T) %>%
+        `[[`("results") %>%
+        as_tibble() 
+    })
+  
+  if (parse) {
+    return(content_list)
+  } else {
+    return(list(parsed_content = content_list, full_res = theme_res))
+  }
+}
+
+#' Get a data frame of information about a specific brick color
+#'
+#' @param theme_id a single numerical theme ID
+#' @param key API key (pulled from environment if saved via rebrickable_save_credentials)
+#' @param ... other arguments (page, page_size, ordering)
+#' @param parse Return results as a formatted tbl without the response information?
+#' @importFrom assertthat assert_that
+#' @importFrom jsonlite parse_json
+#' @importFrom stringr str_remove
+#' @importFrom purrr map_df map_if is_list
+#' @importFrom tibble as_tibble
+#' @importFrom dplyr select
+#' @export
+#' @examples
+#' if (exists(".rebrickable_key")) {
+#'   rebrickable_theme_info(theme_id = 1)
+#' }
+rebrickable_theme_info <- function(theme_id = 1, key = rebrickable_key(), ..., parse = T) {
+  
+  assertthat::assert_that(length(theme_id) == 1)
+  
+  theme_res <- rebrickable_api(sprintf("themes/%s/", theme_id), ..., api_key = key)
+  content_list <- theme_res$content %>%
+    stringr::str_remove("\\\"count\\\":\\d{1,},") %>%
+    stringr::str_remove("\\\"next\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    stringr::str_remove("\\\"previous\\\":(\\\")?[A-z\\.:/0-9?=&]{1,}(\\\")?,") %>%
+    purrr::map_df(function(x) {
+      x %>%
+        jsonlite::parse_json() %>%
+        unlist(recursive = F) %>%
+        purrr::map_if(purrr::is_list, tibble::as_tibble, .name_repair = "minimal") 
+    })
+  
+  
+  if (parse) {
+    return(content_list)
+  } else {
+    return(list(parsed_content = content_list, full_res = theme_res))
+  }
+}
+
