@@ -681,8 +681,10 @@ rebrickable_set_parts <- function(set_id = 1, key = rebrickable_key(), ..., pars
         `[[`("results") %>%
         purrr::map(rbind)
       
-      parts <- purrr::map(y, 3)
-      colors <- purrr::map(y, 4)
+      parts <- purrr::map(y, 3) %>% 
+        purrr::modify_depth(.depth = 2, ~ifelse(is.null(.), NA, .))
+      colors <- purrr::map(y, 4) %>% 
+        purrr::modify_depth(.depth = 2, ~ifelse(is.null(.), NA, .))
       y2 <- y %>% purrr::modify_depth(~ifelse(is.null(.), NA, .), .depth = 2)
       
       purrr::map_df(y2, . %>% as_tibble() %>% dplyr::select(-one_of(c("part", "color"))) %>%
