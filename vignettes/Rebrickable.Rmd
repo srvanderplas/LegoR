@@ -68,3 +68,47 @@ And even view the images of the 24 most common pieces in the set
 ```{r, fig.show = "hold", out.width = "10%"}
 knitr::include_graphics(arrange(parts, desc(quantity))$part_img_url[1:24])
 ```
+
+
+## Putting it all together
+
+Lets' start by getting a data set containing each lego set by decade and year:
+```{r}
+library(dplyr)
+library(tibble)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+
+sets_by_decade <- tibble(min_year = seq(1950, 2010, by = 10), max_year = seq(1959, 2019, by = 10)) %>%
+  mutate(sets = map2(min_year, max_year, ~rebrickable_sets(min_year = .x, max_year = .y, page_length = 100, follow_next = T)))
+
+sets_by_decade <- sets_by_decade %>%
+  select(decade = min_year, sets = sets) %>%
+  unnest("sets")
+```
+We can see how the number of pieces changes over time:
+```{r}
+sets_by_decade %>%
+  filter(num_parts > 1) %>%
+ggplot(aes(x = year, y = num_parts)) + 
+  geom_jitter(alpha = .2) + 
+  geom_smooth() + 
+  scale_y_log10("# Pieces") + 
+  xlab("Year") + 
+  ggtitle("Number of Pieces per year")
+```
+
+With a little bit more work, we can also see how the colors in lego have changed. Let's work with sets containing between 100 and 150 pieces. 
+
+```{r}
+part_list <- sets_by_decade %>%
+  left_join(rebrickable_themes(), by = c("theme_id" = "id")) %>%
+  filter(num_parts >= 100, num_parts <= 150) %>%
+  head() %>%
+  mutate(part_list = map(set_num, function(x){
+    Sys.sleep(5) # be kind to servers!
+    rebrickable_set_parts(set_id = x)
+  }))
+
+```
